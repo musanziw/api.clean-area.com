@@ -22,13 +22,13 @@ export class UsersController {
   constructor(private readonly userService: UsersService) {}
 
   @Post()
-  create(@Body() createUserDto: CreateUserDto): Promise<any> {
+  create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
 
   @Get()
-  findAll(@Query('page') page: number): Promise<any> {
-    return this.userService.findAll(+page);
+  findAll(@Query('offset') offset: number, @Query('limit') limit: number) {
+    return this.userService.findAll(+offset, +limit);
   }
 
   @Get(':id')
@@ -53,7 +53,7 @@ export class UsersController {
     FileInterceptor('thumb', {
       storage: diskStorage({
         destination: './uploads',
-        filename: function (_req, file, cb) {
+        filename: function (_, file, cb) {
           cb(null, `${uuidv4()}.${file.mimetype.split('/')[1]}`);
         },
       }),

@@ -22,8 +22,8 @@ export class SkillsController {
   }
 
   @Get()
-  findAll(@Query('page') page: number) {
-    return this.skillsService.findAll(+page);
+  findAll(@Query('offset') offset: number, @Query('limit') limit: number) {
+    return this.skillsService.findAll(+offset, +limit);
   }
 
   @Get(':id')

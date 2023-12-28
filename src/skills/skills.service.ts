@@ -6,54 +6,58 @@ import {
 } from '@nestjs/common';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
-import { Repository } from 'typeorm';
-import { Skill } from './entities/skill.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import { paginate } from '../helpers/paginate';
+import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class SkillsService {
-  constructor(
-    @InjectRepository(Skill)
-    private readonly skillsRepository: Repository<Skill>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createSkillDto: CreateSkillDto): Promise<any> {
     const { name } = createSkillDto;
-    const skill: Skill | null = await this.skillsRepository.findOneBy({ name });
+    const skill = await this.prisma.skill.findFirst({
+      where: { name },
+    });
     if (skill) throw new ConflictException('Skill already exists');
-    await this.skillsRepository.save(createSkillDto);
+    await this.prisma.skill.create({
+      data: createSkillDto,
+    });
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Skill added successfully',
     };
   }
 
-  async findAll(page: number): Promise<any> {
-    const { offset, limit } = paginate(page, 12);
-    const skills: Skill[] = await this.skillsRepository.find({
+  async findAll(offset: number, limit: number): Promise<any> {
+    const skills = await this.prisma.skill.findMany({
       skip: offset,
       take: limit,
     });
     return {
       statusCode: HttpStatus.OK,
-      data: skills,
+      skills,
     };
   }
 
   async findOne(id: number): Promise<any> {
-    const skill: Skill | null = await this.skillsRepository.findOneBy({ id });
+    const skill = await this.prisma.skill.findUnique({
+      where: { id },
+    });
     if (!skill) throw new NotFoundException('Skill not found');
     return {
       statusCode: HttpStatus.FOUND,
-      data: skill,
+      skill,
     };
   }
 
   async update(id: number, updateSkillDto: UpdateSkillDto) {
-    const skill: Skill | null = await this.skillsRepository.findOneBy({ id });
+    const skill = await this.prisma.skill.findUnique({
+      where: { id },
+    });
     if (!skill) throw new NotFoundException('Skill not found');
-    await this.skillsRepository.update(id, updateSkillDto);
+    await this.prisma.skill.update({
+      where: { id },
+      data: updateSkillDto,
+    });
     return {
       statusCode: HttpStatus.OK,
       message: 'Skill updated successfully',
@@ -61,9 +65,13 @@ export class SkillsService {
   }
 
   async remove(id: number): Promise<any> {
-    const skill: Skill | null = await this.skillsRepository.findOneBy({ id });
+    const skill = await this.prisma.skill.findUnique({
+      where: { id },
+    });
     if (!skill) throw new NotFoundException('Role not found');
-    await this.skillsRepository.delete(id);
+    await this.prisma.skill.delete({
+      where: { id },
+    });
     return {
       statusCode: HttpStatus.OK,
       message: 'Skill deleted successfully',

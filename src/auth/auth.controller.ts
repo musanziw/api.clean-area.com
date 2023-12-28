@@ -8,17 +8,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
 import { LocalGuard } from './guards/local.guard';
 import { Request } from 'express';
 import { Public } from './decorators/public.decorator';
-import { CurrentUser } from './decorators/current-user.decorator';
+import { CurrentUser } from './decorators/user.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
-import { SerializedUser } from '../types/serialized-user';
 import { PasswordService } from './password.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResetPasswordRequestDto } from './dto/reset-password-request.dto';
+import { CreateUserDto } from '../users/dto/create-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -33,13 +32,13 @@ export class AuthController {
   }
 
   @Get('profile')
-  profile(@CurrentUser() user: SerializedUser) {
+  profile(@CurrentUser() user: any) {
     return this.authService.profile(user);
   }
 
   @Patch('profile')
   updateProfile(
-    @CurrentUser() user: SerializedUser,
+    @CurrentUser() user: any,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
     return this.authService.updateProfile(user, updateProfileDto);
@@ -47,7 +46,7 @@ export class AuthController {
 
   @Patch('update-password')
   updatePassword(
-    @CurrentUser() user: SerializedUser,
+    @CurrentUser() user: any,
     @Body() updatePassword: UpdatePasswordDto,
   ): Promise<any> {
     return this.authPasswordService.updatePassword(user, updatePassword);
@@ -76,7 +75,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  register(@Body() registerDto: RegisterDto): Promise<any> {
+  register(@Body() registerDto: CreateUserDto): Promise<any> {
     return this.authService.register(registerDto);
   }
 }

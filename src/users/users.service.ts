@@ -7,43 +7,34 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from './entities/user.entity';
-import { RegisterDto } from '../auth/dto/register.dto';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { randomPassword } from '../helpers/random-password';
-import { EmailPayload } from '../types/email-payload';
-import { paginate } from '../helpers/paginate';
-import { ImagesService } from '../images/images.service';
-import { Image } from '../images/entities/image.entity';
 import * as fs from 'fs';
 import { promisify } from 'util';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../database/prisma.service';
 
 const unlinkAsync = promisify(fs.unlink);
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-    private readonly eventEmitter: EventEmitter2,
-    private readonly imagesService: ImagesService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto): Promise<any> {
     const { email } = createUserDto;
-    const user: User = await this.userRepository.findOneBy({ email });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
     if (user) throw new ConflictException('User already exists');
     try {
-      const password: string = randomPassword();
-      await this.userRepository.save({
-        ...createUserDto,
-        password,
-        roles: createUserDto.roles.map((role) => ({ id: role })),
+      const password: string = await bcrypt.hash(createUserDto.password, 10);
+      await this.prisma.user.create({
+        data: {
+          ...createUserDto,
+          password,
+          roles: {
+            connect: createUserDto.roles.map((role: number) => ({ id: role })),
+          },
+        },
       });
-      const payload: EmailPayload = { email, password };
-      await this.eventEmitter.emitAsync('user.created', { payload });
     } catch {
       throw new BadRequestException('Bad request, try again');
     }
@@ -53,14 +44,22 @@ export class UsersService {
     };
   }
 
-  async register(registerDto: RegisterDto): Promise<any> {
-    const user = await this.userRepository.findOneBy({
-      email: registerDto.email,
+  async register(registerDto: CreateUserDto): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: registerDto.email },
     });
     if (user) throw new ConflictException('User already exists');
-    await this.userRepository.save({
-      ...registerDto,
-      roles: registerDto.roles.map((role: number) => ({ id: role })),
+    const password: string = await bcrypt.hash(registerDto.password, 10);
+    await this.prisma.user.create({
+      data: {
+        ...registerDto,
+        password,
+        roles: {
+          connect: {
+            id: 1,
+          },
+        },
+      },
     });
     return {
       statusCode: HttpStatus.CREATED,
@@ -68,25 +67,25 @@ export class UsersService {
     };
   }
 
-  async findAll(page: number): Promise<any> {
-    const { offset, limit } = paginate(page, 12);
-    const users: User[] = await this.userRepository.find({
-      select: ['id', 'name', 'email', 'is_active', 'created_at'],
+  async findAll(offset: number, limit: number): Promise<any> {
+    const users = await this.prisma.user.findMany({
       skip: offset,
       take: limit,
-      relations: ['roles'],
+      include: {
+        images: true,
+        roles: true,
+      },
     });
     return {
       statusCode: HttpStatus.OK,
-      data: users,
+      users,
     };
   }
 
   async findById(id: number): Promise<any> {
-    const user: User | null = await this.userRepository.findOne({
+    const user = await this.prisma.user.findUnique({
       where: { id },
-      select: ['id', 'name', 'email', 'is_active', 'created_at'],
-      relations: {
+      include: {
         images: true,
         roles: true,
       },
@@ -94,27 +93,35 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
     return {
       statusCode: HttpStatus.OK,
-      data: user,
+      user,
     };
   }
 
-  async findByEmail(email: string): Promise<User> {
-    const user: User | null = await this.userRepository.findOne({
+  async findByEmail(email: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
       where: { email },
-      relations: ['roles'],
+      include: {
+        roles: true,
+      },
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
   async update(id: number, updateUserDto: UpdateUserDto): Promise<any> {
-    const user: User | null = await this.userRepository.findOneBy({ id });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
     if (!user) throw new NotFoundException('User not found');
-    const updatedUser = Object.assign(user, updateUserDto);
     try {
-      await this.userRepository.save({
-        ...updatedUser,
-        roles: updateUserDto.roles.map((role: number) => ({ id: role })),
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          ...updateUserDto,
+          roles: {
+            set: updateUserDto.roles.map((role: number) => ({ id: role })),
+          },
+        },
       });
     } catch {
       throw new BadRequestException('Invalid roles');
@@ -125,39 +132,61 @@ export class UsersService {
     };
   }
 
-  async updatePassword(user: User, password: string): Promise<void> {
-    user.password = password;
-    await this.userRepository.save(user);
+  async updatePassword(id: number, password: string): Promise<void> {
+    const passwordHash: string = await bcrypt.hash(password, 10);
+    await this.prisma.user.update({
+      where: { id: id },
+      data: {
+        password: passwordHash,
+      },
+    });
   }
 
-  async saveResetToken(user: User, password: string): Promise<any> {
-    user.reset_token = password;
-    await this.userRepository.save(user);
+  async saveResetToken(id: number, resetToken: string): Promise<any> {
+    await this.prisma.user.update({
+      where: { id: id },
+      data: {
+        resetToken,
+      },
+    });
   }
 
   async remove(id: number): Promise<any> {
-    const user: User | null = await this.userRepository.findOneBy({ id });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
     if (!user) throw new NotFoundException('User not found');
-    await this.userRepository.delete(id);
+    await this.prisma.user.delete({
+      where: { id },
+    });
     return {
       statusCode: HttpStatus.OK,
       message: 'User deleted successfully',
     };
   }
 
-  async findByResetToken(reset_token: string) {
-    const user: User | null = await this.userRepository.findOneBy({
-      reset_token,
+  async findByResetToken(resetToken: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { resetToken },
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
   async uploadImage(id: number, image: Express.Multer.File): Promise<any> {
-    const { data: user } = await this.findById(id);
-    const { data } = await this.imagesService.create({ thumb: image.filename });
-    user.images.push(data);
-    await this.userRepository.save(user);
+    const { user } = await this.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.prisma.user.update({
+      where: { id: id },
+      data: {
+        images: {
+          create: {
+            thumb: image.filename,
+          },
+        },
+      },
+    });
     return {
       statusCode: HttpStatus.CREATED,
       message: 'Image saved successfully',
@@ -166,20 +195,31 @@ export class UsersService {
 
   async deleteImage(id: number, imageId: number): Promise<any> {
     const { data: user } = await this.findById(id);
-    const image = user.images.find((image: Image) => image.id === imageId);
+    const image = user.images.find((image: any) => image.id === imageId);
     if (!image) throw new NotFoundException('Image not found');
     await unlinkAsync(`./uploads/${image.thumb}`);
-    user.images = user.images.filter((image: Image) => image.id !== imageId);
-    await this.userRepository.save(user);
-    await this.imagesService.remove(imageId);
+    await this.prisma.user.update({
+      where: { id: id },
+      data: {
+        images: {
+          delete: {
+            id: imageId,
+          },
+        },
+      },
+    });
     return {
       statusCode: HttpStatus.OK,
       message: 'Image deleted successfully',
     };
   }
 
-  async removeResetToken(user: User) {
-    user.reset_token = null;
-    await this.userRepository.save(user);
+  async removeResetToken(id: any) {
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        resetToken: null,
+      },
+    });
   }
 }

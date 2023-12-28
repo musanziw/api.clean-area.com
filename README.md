@@ -1,8 +1,18 @@
-## clean-area.com
+## api.clean-area.com
 
 Restful API built with NestJS to power clean-area.com
 
-### Requirements
+This is a RESTful API built with NestJS to power clean-area.com. The API is designed to provide a clean and efficient interface for managing and interacting with clean-area.com.
+
+## Technologies Used
+
+- TypeScript
+- JavaScript
+- NestJS
+- Node.js
+- pnpm
+
+## Requirements
 
 - [Node.js](https://nodejs.org/en/download/) >= 20
 - [pnpm](https://pnpm.js.org/en/installation) >= 8

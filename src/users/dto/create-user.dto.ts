@@ -10,6 +10,9 @@ export class CreateUserDto {
   @IsOptional()
   is_active: boolean;
 
+  @IsString({ message: 'The password field must be a string' })
+  password: string;
+
   @IsArray({ message: 'The roles field must be an array of role IDs' })
   roles: number[];
 }

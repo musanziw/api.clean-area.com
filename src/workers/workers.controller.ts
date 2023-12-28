@@ -27,8 +27,8 @@ export class WorkersController {
   }
 
   @Get()
-  findAll(@Query('page') page: string) {
-    return this.workersService.findAll(+page);
+  findAll(@Query('offset') offset: number, @Query('limit') limit: number) {
+    return this.workersService.findAll(+offset, +limit);
   }
 
   @Get(':id')
@@ -50,7 +50,7 @@ export class WorkersController {
     FileInterceptor('thumb', {
       storage: diskStorage({
         destination: './uploads',
-        filename: function (_req, file, cb) {
+        filename: function (_, file, cb) {
           cb(null, `${uuidv4()}.${file.mimetype.split('/')[1]}`);
         },
       }),

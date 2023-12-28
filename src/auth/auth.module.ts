@@ -6,14 +6,9 @@ import { PassportModule } from '@nestjs/passport';
 import { LocalStrategy } from './strategies/local.strategy';
 import { Session } from './session';
 import { PasswordService } from './password.service';
-import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [
-    UsersModule,
-    PassportModule.register({ session: true }),
-    NotificationsModule,
-  ],
+  imports: [UsersModule, PassportModule.register({ session: true })],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, Session, PasswordService],
 })

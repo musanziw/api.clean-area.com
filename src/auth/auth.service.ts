@@ -1,11 +1,10 @@
 import { HttpException, HttpStatus, Injectable, Req } from '@nestjs/common';
-import { RegisterDto } from './dto/register.dto';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { Request } from 'express';
-import { CurrentUser } from './decorators/current-user.decorator';
+import { CurrentUser } from './decorators/user.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { SerializedUser } from '../types/serialized-user';
+import { CreateUserDto } from '../users/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -24,8 +23,8 @@ export class AuthService {
       id: user.id,
       email: user.email,
       name: user.name,
-      roles: user.roles.map((role) => role.name),
-    } as SerializedUser;
+      roles: user.roles.map((role: any) => role.name),
+    };
   }
 
   async passwordMatch(password: string, hash: string): Promise<boolean> {
@@ -47,7 +46,7 @@ export class AuthService {
     };
   }
 
-  async profile(@CurrentUser() user: SerializedUser): Promise<any> {
+  async profile(@CurrentUser() user: any): Promise<any> {
     return {
       statusCode: HttpStatus.OK,
       data: user,
@@ -66,7 +65,7 @@ export class AuthService {
     };
   }
 
-  register(registerDto: RegisterDto): Promise<any> {
+  register(registerDto: CreateUserDto): Promise<any> {
     return this.usersService.register(registerDto);
   }
 }
