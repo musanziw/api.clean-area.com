@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Image {
+  id      Int      @id @default(autoincrement())
+  thumb   String   @db.VarChar(255)
+  users   User[]
+  workers Worker[]
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  isActive  Int      @default(1) @db.TinyInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
+model Skill {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  workers   Worker[]
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  email      String   @unique() @db.VarChar(255)
+  password   String   @db.VarChar(255)
+  isActive   Boolean  @default(true)
+  resetToken String?  @db.VarChar(255)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  worker     Worker[]
+  images     Image[]
+  roles      Role[]
+}
+
+model Worker {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique() @db.VarChar(100)
+  about     String   @db.LongText
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  addedById Int?
+  user      User?    @relation(fields: [addedById], references: [id])
+  skills    Skill[]
+  images    Image[]
+}
