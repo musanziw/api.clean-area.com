@@ -33,7 +33,7 @@ $ pnpm i
 
 ```bash
 # development
-$ pnpm dev
+$ pnpm start:dev
 
 # build
 $ pnpm build
